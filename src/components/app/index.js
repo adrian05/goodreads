@@ -1,8 +1,12 @@
 import React, { Component } from 'react'
+import Loader from 'react-loader-spinner'
 
 import './index.css'
 import BookList from '../booklist'
 import Search from '../search'
+import { connect } from 'react-redux'
+import PropTypes from 'prop-types'
+import fetchBooksStartedAction from './actions'
 
 const columnData = [
   { id: 'isbn', numeric: true, disablePadding: false, label: 'ISBN' },
@@ -49,19 +53,10 @@ class App extends Component {
     }
   }
 
-  componentDidMount = () =>
-    fetch('/books/')
-      .then(response => response.json())
-      .then(json => {
-        // eslint-disable-next-line no-unused-vars
-        const mapper = columnData.map(column => column.id)
-        const reducedBooks = json.map(book =>
-          (({ ...mapper }) => ({ ...mapper }))(book)
-        )
-        this.setState({
-          books: reducedBooks,
-        })
-      })
+  componentDidMount = () => {
+    const { fetchBooks } = this.props;
+    fetchBooks('/books');
+  }
 
   search = term => {
     this.setState({
@@ -70,15 +65,48 @@ class App extends Component {
   }
 
   render = () => {
-    const { books, filter } = this.state
+    const { filter } = this.state
+    const { books, loading } = this.props
     const filteredBooks = books.filter(book => book.title.includes(filter))
-    return (
-      <div className="app">
-        <Search search={term => this.search(term)} />
-        <BookList books={filteredBooks} columnHeaders={columnData} />
-      </div>
-    )
+
+    if (loading) {
+      return (
+        <Loader
+         type="Puff"
+         color="#00BFFF"
+         height={100}
+         width={100}
+      />
+      )
+    } else {
+      return (
+        <div className="app">
+          <Search search={term => this.search(term)} />
+          <BookList books={filteredBooks} columnHeaders={columnData} />
+        </div>
+      )
+    }
   }
 }
 
-export default App
+App.defaultProps = {
+  books: []
+}
+
+App.propTypes = {
+  fetchBooks: PropTypes.func.isRequired,
+  books: PropTypes.arrayOf(PropTypes.object)
+}
+
+const mapStateToProps = state => ({
+  books: state.appReducer.books,
+  loading: state.appReducer.loading
+})
+
+const mapDispatchToProps = dispatch => ({
+  fetchBooks: url => {
+    dispatch(fetchBooksStartedAction(url))
+  }
+})
+
+export default connect(mapStateToProps, mapDispatchToProps)(App);
